@@ -7,8 +7,9 @@ var App = (function() {
   var tabAdd    = $('tab-add');
   var tabList   = $('tab-list');
   var tabStats  = $('tab-stats');
-  var voiceBtn  = $('voice-btn');
-  var voiceHint = $('voice-hint');
+  var voiceBtn       = $('voice-btn');
+  var voiceHint      = $('voice-hint');
+  var voiceTranscript = $('voice-transcript');
   var inputAmount   = $('input-amount');
   var inputDesc     = $('input-desc');
   var inputDate     = $('input-date');
@@ -58,18 +59,44 @@ var App = (function() {
       if (Voice.listening()) {
         Voice.stop();
         voiceBtn.classList.remove('listening');
+        voiceTranscript.style.display = 'none';
+        voiceHint.textContent = '点按录音，说出你的消费';
         return;
       }
       voiceBtn.classList.add('listening');
-      Voice.start(function(result) {
-        voiceBtn.classList.remove('listening');
-        parseVoiceResult(result);
-      }, function(status) {
-        voiceHint.textContent = status;
-        if (status.indexOf('识别出错') >= 0 || status.indexOf('不支持') >= 0) {
+      voiceTranscript.style.display = 'block';
+      voiceTranscript.textContent = '...';
+      voiceTranscript.className = 'voice-transcript is-interim';
+
+      Voice.start(
+        function(result) {
+          // Final result
           voiceBtn.classList.remove('listening');
+          voiceTranscript.className = 'voice-transcript';
+          voiceTranscript.textContent = '';
+          voiceTranscript.style.display = 'none';
+          voiceHint.textContent = '点按录音，说出你的消费';
+          parseVoiceResult(result);
+        },
+        function(text, isFinal) {
+          // Interim callback — live transcript
+          voiceTranscript.textContent = text || '...';
+          if (isFinal) {
+            voiceTranscript.className = 'voice-transcript';
+          } else {
+            voiceTranscript.className = 'voice-transcript is-interim';
+          }
+          voiceHint.textContent = isFinal ? '✅ 识别完成' : '🎙️ 正在听...';
+        },
+        function(status) {
+          voiceHint.textContent = status;
+          if (status.indexOf('识别出错') >= 0 || status.indexOf('不支持') >= 0 || status.indexOf('没有识别到') >= 0) {
+            voiceBtn.classList.remove('listening');
+            voiceTranscript.style.display = 'none';
+            voiceTranscript.textContent = '';
+          }
         }
-      });
+      );
     });
 
     // Save button

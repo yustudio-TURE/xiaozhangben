@@ -154,7 +154,19 @@ html, body {
   border-color: var(--blue);
   background: #fff;
 }
-.form-input.amount { flex: 0 0 100px; text-align: center; font-size: 20px; font-weight: 500; }
+.voice-transcript {
+  background: #fff;
+  border: 2px solid var(--blue);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: var(--text);
+  min-height: 44px;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+.voice-transcript.is-interim { color: var(--text-secondary); font-style: italic; }
 .form-select {
   padding: 10px 12px;
   border: 1px solid #E5E5EA;

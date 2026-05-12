@@ -4,7 +4,9 @@ var Voice = (function() {
   var recognition = null;
   var isListening = false;
   var _onResult = null;
+  var _onInterim = null;
   var _onStatus = null;
+  var _lastText = '';
 
   function isSupported() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -25,28 +27,48 @@ var Voice = (function() {
       for (var i = e.resultIndex; i < e.results.length; i++) {
         text += e.results[i][0].transcript;
       }
-      // Interim result — do nothing yet
-      if (!e.results[e.results.length - 1].isFinal) return;
+      text = text.trim();
+      if (!text) return;
 
-      if (_onResult) _onResult(text.trim());
+      var isFinal = e.results[e.results.length - 1].isFinal;
+      _lastText = text;
+      if (isFinal) {
+        if (_onInterim) _onInterim(text, true);
+        if (_onResult) _onResult(text);
+      } else {
+        if (_onInterim) _onInterim(text, false);
+      }
     };
 
     recognition.onerror = function(e) {
       isListening = false;
-      if (_onStatus) _onStatus('识别出错: ' + e.error);
+      // 'no-speech' or 'aborted' are common — use last interim if any
+      if (e.error === 'no-speech' || e.error === 'aborted') {
+        var captured = _lastText;
+        _lastText = '';
+        if (captured && _onResult) _onResult(captured);
+      }
+      if (e.error !== 'aborted' && e.error !== 'no-speech') {
+        if (_onStatus) _onStatus('识别出错，请重试');
+      }
     };
 
     recognition.onend = function() {
       isListening = false;
-      if (_onStatus) _onStatus('点按录音，说出你的消费');
+      if (_onStatus && !_lastText) {
+        _onStatus('没有识别到内容，请再试一次');
+      }
     };
 
     return true;
   }
 
-  function start(onResult, onStatus) {
+  function start(onResult, onInterim, onStatus) {
     _onResult = onResult;
+    _onInterim = onInterim || null;
     _onStatus = onStatus;
+    _lastText = '';
+
     if (!init()) {
       if (onStatus) onStatus('您的浏览器不支持语音输入');
       return false;
@@ -65,14 +87,12 @@ var Voice = (function() {
 
   function stop() {
     if (recognition) {
-      recognition.stop();
+      try { recognition.stop(); } catch(e) {}
       isListening = false;
     }
   }
 
-  function listening() {
-    return isListening;
-  }
+  function listening() { return isListening; }
 
   return {
     isSupported: isSupported,
