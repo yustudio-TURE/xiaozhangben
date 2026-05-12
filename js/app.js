@@ -256,13 +256,18 @@ var App = (function() {
 
     // Voice button
     voiceBtn.addEventListener('click', function() {
+      var isBatch = batchMode.checked;
+
       if (Voice.listening()) {
+        // Manual stop — for batch mode, this triggers parse of accumulated text
         Voice.stop();
         voiceBtn.classList.remove('listening');
-        voiceTranscript.style.display = 'none';
-        voiceHint.textContent = '点按录音，说出你的消费';
+        voiceHint.textContent = isBatch ? '点按录音，说出你的消费' : '点按录音，说出你的消费';
+        // The stop() call triggers _onResult in voice.js with full text for continuous mode
+        // For non-continuous, the result was already handled in onresult
         return;
       }
+
       voiceBtn.classList.add('listening');
       voiceTranscript.style.display = 'block';
       voiceTranscript.textContent = '...';
@@ -270,21 +275,30 @@ var App = (function() {
 
       Voice.start(
         function(result) {
+          // Final result — for batch (continuous) mode, this fires on manual stop
+          // For single mode, this fires on auto-stop
           voiceBtn.classList.remove('listening');
           voiceTranscript.className = 'voice-transcript';
           voiceTranscript.textContent = '';
           voiceTranscript.style.display = 'none';
           voiceHint.textContent = '点按录音，说出你的消费';
-          if (batchMode.checked) {
+          if (isBatch) {
             parseBatchResult(result);
           } else {
             parseVoiceResult(result);
           }
         },
         function(text, isFinal) {
+          // Interim callback
           voiceTranscript.textContent = text || '...';
-          voiceTranscript.className = 'voice-transcript' + (isFinal ? '' : ' is-interim');
-          voiceHint.textContent = isFinal ? '✅ 识别完成' : '🎙️ 正在听...';
+          if (isBatch) {
+            // Continuous mode: show accumulated text, don't say "完成" until manual stop
+            voiceTranscript.className = 'voice-transcript is-interim';
+            voiceHint.textContent = '🎙️ 持续录音…说完点按钮结束';
+          } else {
+            voiceTranscript.className = 'voice-transcript' + (isFinal ? '' : ' is-interim');
+            voiceHint.textContent = isFinal ? '✅ 识别完成' : '🎙️ 正在听...';
+          }
         },
         function(status) {
           voiceHint.textContent = status;
@@ -293,7 +307,8 @@ var App = (function() {
             voiceTranscript.style.display = 'none';
             voiceTranscript.textContent = '';
           }
-        }
+        },
+        isBatch  // continuous mode when batch is on
       );
     });
 
@@ -346,6 +361,7 @@ var App = (function() {
   // ---- Voice result parser ----
   function parseVoiceResult(text) {
     if (!text) return;
+    text = convertChineseNumbers(text);
     inputDesc.value = text;
 
     var amountMatch = text.match(/(\d+\.?\d*)\s*(块|元|块钱|元钱|¥|￥)/);
@@ -426,35 +442,54 @@ var App = (function() {
   function parseBatchResult(text) {
     if (!text) return;
 
-    var segments = text.split(/[,，、;；]|\s+还有\s+|\s+然后\s+|\s+接着\s+|\s+另外\s+/g);
+    text = convertChineseNumbers(text);
+
+    // 核心思路：找到文本中所有金额数字的位置，用位置来切分每笔消费
+    // 不依赖标点符号（语音识别往往没有标点）
+    var amountRe = /(\d+\.?\d*)\s*(块钱|元钱|块|元|¥|￥)?/g;
+    var allMatches = [];
+    var m;
+    while ((m = amountRe.exec(text)) !== null) {
+      allMatches.push({
+        amount: parseFloat(m[1]),
+        value: m[0],
+        index: m.index,
+        endIndex: m.index + m[0].length
+      });
+    }
+
+    if (allMatches.length === 0) {
+      toast('未识别到消费记录，请重新说一遍');
+      return;
+    }
+
+    var cleanWords = /[，,、;；。]/g;
+    var connectorWords = /花了|用了|消费了|买了|给了|还有|然后|接着|另外|一共|总共/g;
 
     var items = [];
-    segments.forEach(function(seg) {
-      seg = seg.trim();
-      if (!seg) return;
-      if (seg.length < 2) return;
+    for (var i = 0; i < allMatches.length; i++) {
+      var match = allMatches[i];
+      // 描述 = 上一个金额之后 → 当前金额之前（这段就是这笔消费的描述）
+      var descStart = i === 0 ? 0 : allMatches[i-1].endIndex;
+      var descEnd = match.index;
+      var desc = text.slice(descStart, descEnd);
 
-      var amtMatch = seg.match(/(\d+\.?\d*)\s*(块|元|块钱|元钱|¥|￥)/);
-      if (!amtMatch) amtMatch = seg.match(/(\d+\.?\d*)/);
-      if (!amtMatch) return;
+      // 清除标点和连接词
+      desc = desc.replace(cleanWords, ' ').replace(connectorWords, ' ').replace(/\s+/g, ' ').trim();
 
-      var amount = parseFloat(amtMatch[1]);
-      if (!amount || amount <= 0) return;
-
-      var desc = seg.replace(amtMatch[0], '').replace(/花了|用了|消费了|买了|给了/g, '').trim();
-      if (!desc) desc = seg;
+      if (!desc) desc = '消费';
 
       var result = Classifier.classify(desc);
       items.push({
-        amount: amount,
+        amount: match.amount,
         description: desc,
         category: result.category,
         confidence: result.confidence
       });
-    });
+    }
 
     if (items.length === 0) {
-      toast('未识别到消费记录，请重新说一遍');
+      toast('未识别到消费记录');
       return;
     }
 
@@ -743,6 +778,50 @@ var App = (function() {
       '教育': 'education', '其他': 'other'
     };
     return map[cat] || 'other';
+  }
+
+  function convertChineseNumbers(text) {
+    var digits = { '零':0, '一':1, '二':2, '两':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9 };
+    return text.replace(/[零一二两三四五六七八九十百千万]+/g, function(match) {
+      // Only convert if followed by or preceded by amount-related context
+      var num = parseChineseNum(match);
+      return num !== null ? String(num) : match;
+    });
+  }
+
+  function parseChineseNum(str) {
+    str = str.replace(/两/g, '二');
+    var map = { '零':0, '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9 };
+
+    var total = 0;
+    var section = 0;
+
+    for (var i = 0; i < str.length; i++) {
+      var ch = str[i];
+      var digit = map[ch];
+
+      if (digit !== undefined) {
+        section = digit;
+      } else if (ch === '十') {
+        section = (section || 1) * 10;
+        total += section;
+        section = 0;
+      } else if (ch === '百') {
+        section = (section || 1) * 100;
+        total += section;
+        section = 0;
+      } else if (ch === '千') {
+        section = (section || 1) * 1000;
+        total += section;
+        section = 0;
+      } else if (ch === '万') {
+        section = (section || 1) * 10000;
+        total += section;
+        section = 0;
+      }
+    }
+    total += section;
+    return total > 0 ? total : null;
   }
 
   return { init: init };

@@ -7,6 +7,8 @@ var Voice = (function() {
   var _onInterim = null;
   var _onStatus = null;
   var _lastText = '';
+  var _fullText = '';
+  var _continuous = false;
 
   function isSupported() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -23,30 +25,49 @@ var Voice = (function() {
     recognition.continuous = false;
 
     recognition.onresult = function(e) {
-      var text = '';
-      for (var i = e.resultIndex; i < e.results.length; i++) {
-        text += e.results[i][0].transcript;
+      // Reconstruct full text from all results (handles both continuous and single mode)
+      var fullText = '';
+      for (var i = 0; i < e.results.length; i++) {
+        fullText += e.results[i][0].transcript;
       }
-      text = text.trim();
-      if (!text) return;
+      fullText = fullText.trim();
+      if (!fullText) return;
 
       var isFinal = e.results[e.results.length - 1].isFinal;
-      _lastText = text;
-      if (isFinal) {
-        if (_onInterim) _onInterim(text, true);
-        if (_onResult) _onResult(text);
+
+      if (_continuous) {
+        _fullText = fullText;
+        if (_onInterim) _onInterim(fullText, isFinal);
+        // Don't call _onResult — wait for manual stop()
       } else {
-        if (_onInterim) _onInterim(text, false);
+        _lastText = fullText;
+        if (isFinal) {
+          if (_onInterim) _onInterim(fullText, true);
+          if (_onResult) _onResult(fullText);
+        } else {
+          if (_onInterim) _onInterim(fullText, false);
+        }
       }
     };
 
     recognition.onerror = function(e) {
+      if (_continuous) {
+        // In continuous mode, errors are common (no-speech between utterances)
+        // Just restart if needed
+        if (e.error === 'no-speech' || e.error === 'aborted') {
+          if (isListening) {
+            setTimeout(function() {
+              try { recognition.start(); } catch(ex) {}
+            }, 200);
+          }
+          return;
+        }
+      }
       isListening = false;
-      // 'no-speech' or 'aborted' are common — use last interim if any
       if (e.error === 'no-speech' || e.error === 'aborted') {
         var captured = _lastText;
         _lastText = '';
-        if (captured && _onResult) _onResult(captured);
+        if (captured && _onResult && !_continuous) _onResult(captured);
       }
       if (e.error !== 'aborted' && e.error !== 'no-speech') {
         if (_onStatus) _onStatus('识别出错，请重试');
@@ -54,29 +75,40 @@ var Voice = (function() {
     };
 
     recognition.onend = function() {
-      isListening = false;
-      if (_onStatus && !_lastText) {
-        _onStatus('没有识别到内容，请再试一次');
+      if (_continuous && isListening) {
+        // Natural pause in continuous mode — restart
+        setTimeout(function() {
+          try { recognition.start(); } catch(ex) { isListening = false; }
+        }, 100);
+      } else if (!_continuous) {
+        isListening = false;
+        if (_onStatus && !_lastText) {
+          _onStatus('没有识别到内容，请再试一次');
+        }
       }
     };
 
     return true;
   }
 
-  function start(onResult, onInterim, onStatus) {
+  function start(onResult, onInterim, onStatus, continuous) {
     _onResult = onResult;
     _onInterim = onInterim || null;
     _onStatus = onStatus;
     _lastText = '';
+    _fullText = '';
+    _continuous = !!continuous;
 
     if (!init()) {
       if (onStatus) onStatus('您的浏览器不支持语音输入');
       return false;
     }
+
     try {
+      recognition.continuous = _continuous;
       recognition.start();
       isListening = true;
-      if (onStatus) onStatus('🎙️ 正在听...');
+      if (onStatus) onStatus(continuous ? '🎙️ 持续录音中…点击按钮结束' : '🎙️ 正在听...');
       return true;
     } catch (e) {
       isListening = false;
@@ -86,9 +118,12 @@ var Voice = (function() {
   }
 
   function stop() {
+    isListening = false;
     if (recognition) {
       try { recognition.stop(); } catch(e) {}
-      isListening = false;
+    }
+    if (_continuous && _fullText && _onResult) {
+      _onResult(_fullText);
     }
   }
 
