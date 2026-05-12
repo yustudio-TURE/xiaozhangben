@@ -35,7 +35,7 @@
         <button class="auth-btn" id="auth-btn-submit">登 录</button>
         <button class="auth-btn outline" id="auth-btn-switch">还没有账户？去注册</button>
       </div>
-      <div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:4px;">v2.1 — 日统计+编辑</div>
+      <div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:4px;">v2.2 — 批量语音+日期选择</div>
     </div>
 
     <!-- ==================== 主应用 ==================== -->
@@ -54,6 +54,13 @@
           <div class="voice-hint" id="voice-hint">点按录音，说出你的消费</div>
         </div>
         <div class="voice-transcript" id="voice-transcript" style="display:none;"></div>
+        <div class="batch-toggle-row">
+          <label class="batch-switch" id="batch-switch-label">
+            <input type="checkbox" id="batch-mode">
+            <span class="batch-switch-text">📋 批量模式（一句话记多笔）</span>
+          </label>
+        </div>
+        <div id="batch-results" style="display:none;"></div>
         <div class="card">
           <div class="form-row">
             <span style="font-size:20px;font-weight:500;">¥</span>
@@ -114,6 +121,8 @@
         <div class="stats-nav" id="stats-nav">
           <button class="nav-btn" id="nav-prev">◀</button>
           <span class="nav-label" id="nav-label">2026年5月</span>
+          <input type="date" class="nav-date-input" id="nav-date-input" style="display:none;">
+          <input type="month" class="nav-month-input" id="nav-month-input" style="display:none;">
           <button class="nav-btn" id="nav-next">▶</button>
         </div>
         <div class="stats-summary" id="stats-summary">

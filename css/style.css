@@ -465,7 +465,20 @@ html, body {
   cursor: pointer;
   color: var(--blue);
 }
-.stats-nav .nav-label { font-size: 16px; font-weight: 600; min-width: 80px; text-align: center; }
+.stats-nav .nav-label { font-size: 16px; font-weight: 600; min-width: 80px; text-align: center; cursor: pointer; }
+.stats-nav .nav-label:active { opacity: 0.6; }
+.nav-date-input, .nav-month-input {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+  background: transparent;
+  color: var(--blue);
+  font-family: inherit;
+  min-width: 80px;
+  padding: 4px 0;
+  outline: none;
+}
 
 /* === Modal === */
 .modal {
@@ -521,6 +534,64 @@ html, body {
   white-space: nowrap;
 }
 .btn-cancel:active { background: #E5E5EA; }
+
+/* === Batch Mode === */
+.batch-toggle-row {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 12px;
+}
+.batch-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: var(--card);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.batch-switch input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--green); }
+.batch-switch.has-batch { color: var(--green); font-weight: 500; }
+.batch-results { margin-bottom: 12px; }
+.batch-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--card);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.batch-item .batch-cat-icon { font-size: 22px; flex-shrink: 0; width: 32px; text-align: center; }
+.batch-item .batch-info { flex: 1; min-width: 0; }
+.batch-item .batch-desc { font-size: 14px; font-weight: 500; }
+.batch-item .batch-cat { font-size: 11px; color: var(--text-secondary); }
+.batch-item .batch-amount { font-size: 17px; font-weight: 600; white-space: nowrap; }
+.batch-item .batch-remove {
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.batch-save-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.batch-save-btn:active { opacity: 0.8; }
 
 /* === Toast === */
 .toast {

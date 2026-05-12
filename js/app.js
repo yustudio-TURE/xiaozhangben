@@ -47,7 +47,13 @@ var App = (function() {
   var btnEditCancel = $('btn-edit-cancel');
   var modalOverlay  = $('modal-overlay');
   var dayDetailContainer = $('day-detail-container');
+  var navDateInput  = $('nav-date-input');
+  var navMonthInput = $('nav-month-input');
+  var batchMode     = $('batch-mode');
+  var batchResults  = $('batch-results');
+  var batchSwitchLabel = $('batch-switch-label');
   var _editingId = null;
+  var _batchItems = [];
 
   var currentTab = 'add';
   var statsPeriod = 'month';
@@ -189,6 +195,60 @@ var App = (function() {
     $('nav-prev').addEventListener('click', function() { shiftStats(-1); });
     $('nav-next').addEventListener('click', function() { shiftStats(1); });
 
+    // Date picker: click label to pick date/month
+    navLabel.addEventListener('click', function() {
+      if (statsPeriod === 'day') {
+        navLabel.style.display = 'none';
+        navDateInput.style.display = '';
+        navDateInput.value = statsYear + '-' +
+          (statsMonth < 10 ? '0' : '') + statsMonth + '-' +
+          (statsDay < 10 ? '0' : '') + statsDay;
+        navDateInput.focus();
+      } else if (statsPeriod === 'month') {
+        navLabel.style.display = 'none';
+        navMonthInput.style.display = '';
+        navMonthInput.value = statsYear + '-' + (statsMonth < 10 ? '0' : '') + statsMonth;
+        navMonthInput.focus();
+      } else {
+        var y = prompt('输入年份（如 2026）:', statsYear);
+        if (y && !isNaN(y) && y > 2000 && y < 2100) {
+          statsYear = parseInt(y);
+          refreshStats();
+        }
+      }
+    });
+
+    navDateInput.addEventListener('change', function() {
+      var parts = this.value.split('-');
+      statsYear = parseInt(parts[0]);
+      statsMonth = parseInt(parts[1]);
+      statsDay = parseInt(parts[2]);
+      navDateInput.style.display = 'none';
+      navLabel.style.display = '';
+      refreshStats();
+    });
+    navDateInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        navDateInput.style.display = 'none';
+        navLabel.style.display = '';
+      }, 300);
+    });
+
+    navMonthInput.addEventListener('change', function() {
+      var parts = this.value.split('-');
+      statsYear = parseInt(parts[0]);
+      statsMonth = parseInt(parts[1]);
+      navMonthInput.style.display = 'none';
+      navLabel.style.display = '';
+      refreshStats();
+    });
+    navMonthInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        navMonthInput.style.display = 'none';
+        navLabel.style.display = '';
+      }, 300);
+    });
+
     // Edit modal
     btnEditSave.addEventListener('click', saveEdit);
     btnEditCancel.addEventListener('click', closeEditModal);
@@ -215,7 +275,11 @@ var App = (function() {
           voiceTranscript.textContent = '';
           voiceTranscript.style.display = 'none';
           voiceHint.textContent = '点按录音，说出你的消费';
-          parseVoiceResult(result);
+          if (batchMode.checked) {
+            parseBatchResult(result);
+          } else {
+            parseVoiceResult(result);
+          }
         },
         function(text, isFinal) {
           voiceTranscript.textContent = text || '...';
@@ -231,6 +295,15 @@ var App = (function() {
           }
         }
       );
+    });
+
+    // Batch mode toggle
+    batchMode.addEventListener('change', function() {
+      if (!this.checked) {
+        batchResults.style.display = 'none';
+        batchSwitchLabel.classList.remove('has-batch');
+        _batchItems = [];
+      }
     });
 
     // Save button
@@ -345,6 +418,113 @@ var App = (function() {
     inputDate.value = new Date().toISOString().slice(0, 10);
 
     toast('✅ 已记录 ' + Classifier.getIcon(category) + ' ¥' + amount.toFixed(2));
+    if (currentTab === 'list') refreshList();
+    if (currentTab === 'stats') refreshStats();
+  }
+
+  // ---- Batch mode ----
+  function parseBatchResult(text) {
+    if (!text) return;
+
+    var segments = text.split(/[,，、;；]|\s+还有\s+|\s+然后\s+|\s+接着\s+|\s+另外\s+/g);
+
+    var items = [];
+    segments.forEach(function(seg) {
+      seg = seg.trim();
+      if (!seg) return;
+      if (seg.length < 2) return;
+
+      var amtMatch = seg.match(/(\d+\.?\d*)\s*(块|元|块钱|元钱|¥|￥)/);
+      if (!amtMatch) amtMatch = seg.match(/(\d+\.?\d*)/);
+      if (!amtMatch) return;
+
+      var amount = parseFloat(amtMatch[1]);
+      if (!amount || amount <= 0) return;
+
+      var desc = seg.replace(amtMatch[0], '').replace(/花了|用了|消费了|买了|给了/g, '').trim();
+      if (!desc) desc = seg;
+
+      var result = Classifier.classify(desc);
+      items.push({
+        amount: amount,
+        description: desc,
+        category: result.category,
+        confidence: result.confidence
+      });
+    });
+
+    if (items.length === 0) {
+      toast('未识别到消费记录，请重新说一遍');
+      return;
+    }
+
+    renderBatchResults(items);
+  }
+
+  function renderBatchResults(items) {
+    _batchItems = items;
+
+    var html = '';
+    items.forEach(function(item, i) {
+      html += '<div class="batch-item">' +
+        '<div class="batch-cat-icon">' + Classifier.getIcon(item.category) + '</div>' +
+        '<div class="batch-info">' +
+          '<div class="batch-desc">' + esc(item.description) + '</div>' +
+          '<div class="batch-cat">' + item.category + '</div>' +
+        '</div>' +
+        '<div class="batch-amount">¥' + item.amount.toFixed(2) + '</div>' +
+        '<button class="batch-remove" data-idx="' + i + '">✕</button>' +
+        '</div>';
+    });
+    html += '<button class="batch-save-btn" id="btn-batch-save">✅ 全部保存 (' + items.length + '笔)</button>';
+
+    batchResults.innerHTML = html;
+    batchResults.style.display = 'block';
+    batchSwitchLabel.classList.add('has-batch');
+
+    batchResults.querySelectorAll('.batch-remove').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var idx = parseInt(this.dataset.idx);
+        _batchItems.splice(idx, 1);
+        if (_batchItems.length === 0) {
+          batchResults.style.display = 'none';
+          batchSwitchLabel.classList.remove('has-batch');
+          _batchItems = [];
+        } else {
+          renderBatchResults(_batchItems);
+        }
+      });
+    });
+
+    var saveBtn = batchResults.querySelector('#btn-batch-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', saveAllBatch);
+    }
+  }
+
+  function saveAllBatch() {
+    if (!_batchItems || _batchItems.length === 0) return;
+
+    var date = inputDate.value || new Date().toISOString().slice(0, 10);
+    _batchItems.forEach(function(item) {
+      Storage.save({
+        amount: item.amount,
+        description: item.description,
+        category: item.category,
+        date: date
+      });
+    });
+
+    toast('✅ 已保存 ' + _batchItems.length + ' 笔记录');
+    batchResults.style.display = 'none';
+    batchSwitchLabel.classList.remove('has-batch');
+    _batchItems = [];
+
+    inputAmount.value = '';
+    inputDesc.value = '';
+    inputCategory.value = '';
+
     if (currentTab === 'list') refreshList();
     if (currentTab === 'stats') refreshStats();
   }
