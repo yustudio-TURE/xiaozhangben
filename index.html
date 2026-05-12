@@ -35,7 +35,7 @@
         <button class="auth-btn" id="auth-btn-submit">登 录</button>
         <button class="auth-btn outline" id="auth-btn-switch">还没有账户？去注册</button>
       </div>
-      <div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:4px;">v2.0 — 多用户版</div>
+      <div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:4px;">v2.1 — 日统计+编辑</div>
     </div>
 
     <!-- ==================== 主应用 ==================== -->
@@ -107,6 +107,7 @@
           </span>
         </div>
         <div class="stats-header">
+          <button class="period-btn" data-period="day">日</button>
           <button class="period-btn active" data-period="month">月度</button>
           <button class="period-btn" data-period="year">年度</button>
         </div>
@@ -134,6 +135,41 @@
         </div>
         <div class="chart-container">
           <canvas id="bar-chart"></canvas>
+        </div>
+        <div id="day-detail-container" style="display:none;"></div>
+      </div>
+
+      <!-- 编辑弹窗 -->
+      <div id="edit-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" id="modal-overlay"></div>
+        <div class="modal-content card">
+          <div style="font-size:17px;font-weight:600;margin-bottom:12px;">✏️ 修改记录</div>
+          <div class="form-row">
+            <span style="font-size:18px;font-weight:500;">¥</span>
+            <input type="number" class="form-input" id="edit-amount" placeholder="金额" step="0.01" style="flex:1;font-size:20px;font-weight:500;">
+          </div>
+          <div class="form-row">
+            <input type="text" class="form-input" id="edit-desc" placeholder="买了什么？">
+          </div>
+          <div class="form-row">
+            <input type="date" class="form-input" id="edit-date">
+          </div>
+          <div class="form-row">
+            <select class="form-select" id="edit-category" style="flex:1;">
+              <option value="餐饮">🍔 餐饮</option>
+              <option value="交通">🚌 交通</option>
+              <option value="购物">🛒 购物</option>
+              <option value="娱乐">🎮 娱乐</option>
+              <option value="住房">🏠 住房</option>
+              <option value="医疗">💊 医疗</option>
+              <option value="教育">📚 教育</option>
+              <option value="其他">💰 其他</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-top:12px;">
+            <button class="btn-primary" id="btn-edit-save" style="flex:1;">保存</button>
+            <button class="btn-cancel" id="btn-edit-cancel" style="flex:1;">取消</button>
+          </div>
         </div>
       </div>
 

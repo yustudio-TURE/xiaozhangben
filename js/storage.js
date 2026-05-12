@@ -58,6 +58,11 @@ var Storage = (function() {
     });
   }
 
+  function getByDay(year, month, day) {
+    var target = year + '-' + (month < 10 ? '0' + month : month) + '-' + (day < 10 ? '0' + day : day);
+    return _read().filter(function(r) { return r.date === target; });
+  }
+
   function remove(id) {
     var records = _read().filter(function(r) { return r.id !== id; });
     _write(records);
@@ -94,6 +99,7 @@ var Storage = (function() {
     getAll: getAll,
     getByMonth: getByMonth,
     getByYear: getByYear,
+    getByDay: getByDay,
     remove: remove,
     update: update,
     exportData: exportData,

@@ -467,6 +467,61 @@ html, body {
 }
 .stats-nav .nav-label { font-size: 16px; font-weight: 600; min-width: 80px; text-align: center; }
 
+/* === Modal === */
+.modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+}
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-content .form-row + .form-row { margin-top: 10px; }
+
+/* Edit button in expense list */
+.btn-edit {
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-edit:active { opacity: 0.6; }
+
+/* Cancel button */
+.btn-cancel {
+  padding: 10px 18px;
+  background: #F2F2F7;
+  color: var(--text);
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.btn-cancel:active { background: #E5E5EA; }
+
 /* === Toast === */
 .toast {
   position: fixed;

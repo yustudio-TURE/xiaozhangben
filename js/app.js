@@ -35,10 +35,23 @@ var App = (function() {
   var statTotal     = $('stat-total');
   var statCount     = $('stat-count');
   var statAvg       = $('stat-avg');
+  var statAvgLabel  = document.querySelector('#stats-summary .stat-item:last-child .stat-label');
+
+  // Edit modal DOM
+  var editModal     = $('edit-modal');
+  var editAmount    = $('edit-amount');
+  var editDesc      = $('edit-desc');
+  var editDate      = $('edit-date');
+  var editCategory  = $('edit-category');
+  var btnEditSave   = $('btn-edit-save');
+  var btnEditCancel = $('btn-edit-cancel');
+  var modalOverlay  = $('modal-overlay');
+  var dayDetailContainer = $('day-detail-container');
+  var _editingId = null;
 
   var currentTab = 'add';
   var statsPeriod = 'month';
-  var statsYear, statsMonth;
+  var statsYear, statsMonth, statsDay;
   var isRegisterMode = false;
   var currentUser = null;
 
@@ -68,6 +81,7 @@ var App = (function() {
     var now = new Date();
     statsYear = now.getFullYear();
     statsMonth = now.getMonth() + 1;
+    statsDay = now.getDate();
 
     switchTab('add');
     toast('👋 欢迎, ' + user.username);
@@ -174,6 +188,11 @@ var App = (function() {
     // Stats nav
     $('nav-prev').addEventListener('click', function() { shiftStats(-1); });
     $('nav-next').addEventListener('click', function() { shiftStats(1); });
+
+    // Edit modal
+    btnEditSave.addEventListener('click', saveEdit);
+    btnEditCancel.addEventListener('click', closeEditModal);
+    modalOverlay.addEventListener('click', closeEditModal);
 
     // Voice button
     voiceBtn.addEventListener('click', function() {
@@ -358,6 +377,7 @@ var App = (function() {
           '<div class="item-info"><div class="item-desc">' + esc(r.description) + '</div>' +
           '<div class="item-meta">' + r.category + '</div></div>' +
           '<div class="item-amount">¥' + r.amount.toFixed(2) + '</div>' +
+          '<button class="btn-edit" data-id="' + r.id + '">✏️</button>' +
           '<button class="btn-delete" data-id="' + r.id + '">🗑</button>' +
           '</div>';
       });
@@ -375,12 +395,64 @@ var App = (function() {
         }
       });
     });
+
+    expenseList.querySelectorAll('.btn-edit').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openEditModal(this.dataset.id);
+      });
+    });
+  }
+
+  // ---- Edit Modal ----
+  function openEditModal(id) {
+    var records = Storage.getAll();
+    var record = null;
+    for (var i = 0; i < records.length; i++) {
+      if (records[i].id === id) { record = records[i]; break; }
+    }
+    if (!record) return;
+
+    _editingId = id;
+    editAmount.value = record.amount;
+    editDesc.value = record.description;
+    editDate.value = record.date;
+    editCategory.value = record.category;
+    editModal.style.display = 'flex';
+  }
+
+  function closeEditModal() {
+    editModal.style.display = 'none';
+    _editingId = null;
+  }
+
+  function saveEdit() {
+    var amount = parseFloat(editAmount.value);
+    var desc = editDesc.value.trim();
+    if (!amount || amount <= 0) { toast('请输入金额'); return; }
+    if (!desc) { toast('请输入消费内容'); return; }
+
+    Storage.update(_editingId, {
+      amount: amount,
+      description: desc,
+      category: editCategory.value,
+      date: editDate.value
+    });
+
+    closeEditModal();
+    toast('✅ 已修改');
+    refreshList();
+    if (currentTab === 'stats') refreshStats();
   }
 
   // ---- Statistics ----
   function refreshStats() {
     var records;
-    if (statsPeriod === 'month') {
+
+    if (statsPeriod === 'day') {
+      records = Storage.getByDay(statsYear, statsMonth, statsDay);
+      navLabel.textContent = statsYear + '年' + statsMonth + '月' + statsDay + '日';
+    } else if (statsPeriod === 'month') {
       records = Storage.getByMonth(statsYear, statsMonth);
       navLabel.textContent = statsYear + '年' + statsMonth + '月';
     } else {
@@ -392,21 +464,71 @@ var App = (function() {
     statTotal.textContent = '¥' + total.toFixed(2);
     statCount.textContent = records.length;
 
-    if (statsPeriod === 'month') {
+    if (statsPeriod === 'day') {
+      // Daily: no average needed, hide the avg stat
+      statAvg.textContent = '—';
+      statAvgLabel.textContent = '当天';
+      statAvg.parentElement.style.display = '';
+    } else if (statsPeriod === 'month') {
       var daysInMonth = new Date(statsYear, statsMonth, 0).getDate();
       statAvg.textContent = '¥' + (records.length ? (total / daysInMonth).toFixed(2) : '0');
+      statAvgLabel.textContent = '日均';
+      statAvg.parentElement.style.display = '';
     } else {
-      statAvg.textContent = '¥' + (records.length ? (total / 12).toFixed(2) : '0');
+      // Yearly: total / days in year (not months!)
+      var daysInYear = isLeapYear(statsYear) ? 366 : 365;
+      var now = new Date();
+      if (statsYear === now.getFullYear()) {
+        var start = new Date(statsYear, 0, 1);
+        daysInYear = Math.floor((now - start) / 86400000) + 1;
+      }
+      statAvg.textContent = '¥' + (records.length ? (total / daysInYear).toFixed(2) : '0');
+      statAvgLabel.textContent = '日均';
+      statAvg.parentElement.style.display = '';
     }
 
     $('stats-nav').style.display = 'flex';
 
-    Charts.renderPie('pie-chart', records);
-    Charts.renderBar('bar-chart', records, statsPeriod, statsYear, statsMonth);
+    if (statsPeriod === 'day') {
+      // Day mode: show detail list instead of charts
+      document.querySelectorAll('#tab-stats .chart-container').forEach(function(el) { el.style.display = 'none'; });
+      Charts.destroyAll();
+      renderDayDetail(records);
+    } else {
+      document.querySelectorAll('#tab-stats .chart-container').forEach(function(el) { el.style.display = ''; });
+      dayDetailContainer.style.display = 'none';
+      Charts.renderPie('pie-chart', records);
+      Charts.renderBar('bar-chart', records, statsPeriod, statsYear, statsMonth);
+    }
+  }
+
+  function renderDayDetail(records) {
+    dayDetailContainer.style.display = 'block';
+    if (records.length === 0) {
+      dayDetailContainer.innerHTML = '<div class="card" style="text-align:center;color:var(--text-secondary);padding:24px;">当天没有消费记录</div>';
+      return;
+    }
+    var html = '';
+    records.forEach(function(r) {
+      var icon = Classifier.getIcon(r.category);
+      var catClass = getCatClass(r.category);
+      html += '<div class="expense-item">' +
+        '<div class="cat-icon ' + catClass + '">' + icon + '</div>' +
+        '<div class="item-info"><div class="item-desc">' + esc(r.description) + '</div>' +
+        '<div class="item-meta">' + r.category + '</div></div>' +
+        '<div class="item-amount">¥' + r.amount.toFixed(2) + '</div>' +
+        '</div>';
+    });
+    dayDetailContainer.innerHTML = html;
   }
 
   function shiftStats(dir) {
-    if (statsPeriod === 'month') {
+    if (statsPeriod === 'day') {
+      var d = new Date(statsYear, statsMonth - 1, statsDay + dir);
+      statsYear = d.getFullYear();
+      statsMonth = d.getMonth() + 1;
+      statsDay = d.getDate();
+    } else if (statsPeriod === 'month') {
       statsMonth += dir;
       if (statsMonth > 12) { statsMonth = 1; statsYear++; }
       if (statsMonth < 1) { statsMonth = 12; statsYear--; }
@@ -414,6 +536,10 @@ var App = (function() {
       statsYear += dir;
     }
     refreshStats();
+  }
+
+  function isLeapYear(y) {
+    return (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
   }
 
   // ---- Helpers ----

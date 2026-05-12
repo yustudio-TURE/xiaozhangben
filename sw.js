@@ -1,5 +1,5 @@
 // 版本号 — 每次更新代码后改这里，手机就会自动更新
-var CACHE = 'xiaozhangben-v2';
+var CACHE = 'xiaozhangben-v3';
 var URLS = [
   '.',
   'index.html',
