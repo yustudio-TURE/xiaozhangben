@@ -1,18 +1,27 @@
 var Storage = (function() {
   'use strict';
 
-  var KEY = 'xiaozhangben_data';
+  var KEY_PREFIX = 'xiaozhangben_data_';
+  var _userId = null;
+
+  function setUser(userId) {
+    _userId = userId;
+  }
+
+  function _key() {
+    return KEY_PREFIX + (_userId || 'default');
+  }
 
   function _read() {
     try {
-      return JSON.parse(localStorage.getItem(KEY)) || [];
+      return JSON.parse(localStorage.getItem(_key())) || [];
     } catch (e) {
       return [];
     }
   }
 
   function _write(records) {
-    localStorage.setItem(KEY, JSON.stringify(records));
+    localStorage.setItem(_key(), JSON.stringify(records));
   }
 
   function save(record) {
@@ -75,7 +84,12 @@ var Storage = (function() {
     _write(data);
   }
 
+  function count() {
+    return _read().length;
+  }
+
   return {
+    setUser: setUser,
     save: save,
     getAll: getAll,
     getByMonth: getByMonth,
@@ -83,6 +97,7 @@ var Storage = (function() {
     remove: remove,
     update: update,
     exportData: exportData,
-    importData: importData
+    importData: importData,
+    count: count
   };
 })();

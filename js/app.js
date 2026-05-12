@@ -1,9 +1,23 @@
 var App = (function() {
   'use strict';
 
-  // ---- DOM refs ----
   var $ = function(id) { return document.getElementById(id); };
 
+  // ---- Auth DOM ----
+  var authPage       = $('auth-page');
+  var authModeText   = $('auth-mode-text');
+  var authUsername   = $('auth-username');
+  var authPassword   = $('auth-password');
+  var authPassword2  = $('auth-password2');
+  var authRegisterExtra = $('auth-register-extra');
+  var authRemember   = $('auth-remember');
+  var authAutoLogin  = $('auth-auto-login');
+  var authError      = $('auth-error');
+  var authBtnSubmit  = $('auth-btn-submit');
+  var authBtnSwitch  = $('auth-btn-switch');
+
+  // ---- Main DOM ----
+  var mainContainer  = $('main-container');
   var tabAdd    = $('tab-add');
   var tabList   = $('tab-list');
   var tabStats  = $('tab-stats');
@@ -25,10 +39,120 @@ var App = (function() {
   var currentTab = 'add';
   var statsPeriod = 'month';
   var statsYear, statsMonth;
+  var isRegisterMode = false;
+  var currentUser = null;
 
-  // ---- Init ----
-  function init() {
+  // ==================== AUTH ====================
+  function showAuth() {
+    authPage.classList.add('active');
+    mainContainer.classList.remove('active');
+    mainContainer.style.display = 'none';
+  }
+
+  function showMain(user) {
+    currentUser = user;
+    Storage.setUser(user.id);
+
+    // Update all header usernames
+    var names = document.querySelectorAll('[id^="header-username"]');
+    names.forEach(function(el) { el.textContent = user.username; });
+
+    authPage.classList.remove('active');
+    mainContainer.classList.add('active');
+    mainContainer.style.display = 'flex';
+
+    // Init date
     inputDate.value = new Date().toISOString().slice(0, 10);
+
+    // Init stats nav
+    var now = new Date();
+    statsYear = now.getFullYear();
+    statsMonth = now.getMonth() + 1;
+
+    switchTab('add');
+    toast('👋 欢迎, ' + user.username);
+  }
+
+  function handleAuth() {
+    var username = authUsername.value.trim();
+    var password = authPassword.value;
+    var remember = authRemember.checked;
+    var autoLogin = authAutoLogin.checked;
+
+    authError.textContent = '';
+
+    if (isRegisterMode) {
+      var password2 = authPassword2.value;
+      if (password !== password2) {
+        authError.textContent = '两次密码不一致';
+        return;
+      }
+      var regResult = Auth.register(username, password);
+      if (!regResult.ok) {
+        authError.textContent = regResult.error;
+        return;
+      }
+      // After register, auto-login
+      var loginResult = Auth.login(username, password, remember, autoLogin);
+      if (loginResult.ok) {
+        showMain(loginResult.user);
+      }
+    } else {
+      var loginResult = Auth.login(username, password, remember, autoLogin);
+      if (!loginResult.ok) {
+        authError.textContent = loginResult.error;
+        return;
+      }
+      showMain(loginResult.user);
+    }
+  }
+
+  function switchAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    if (isRegisterMode) {
+      authModeText.textContent = '注册新账户';
+      authBtnSubmit.textContent = '注 册';
+      authBtnSwitch.textContent = '已有账户？去登录';
+      authRegisterExtra.style.display = 'block';
+      authAutoLogin.parentElement.style.display = 'none';
+      authRemember.parentElement.style.display = 'none';
+    } else {
+      authModeText.textContent = '登录你的账户';
+      authBtnSubmit.textContent = '登 录';
+      authBtnSwitch.textContent = '还没有账户？去注册';
+      authRegisterExtra.style.display = 'none';
+      authAutoLogin.parentElement.style.display = '';
+      authRemember.parentElement.style.display = '';
+    }
+    authError.textContent = '';
+    authUsername.value = '';
+    authPassword.value = '';
+    authPassword2.value = '';
+  }
+
+  function handleLogout() {
+    if (!confirm('确定要退出登录吗？')) return;
+    Auth.logout();
+    currentUser = null;
+    Voice.stop();
+    voiceBtn.classList.remove('listening');
+    voiceTranscript.style.display = 'none';
+    showAuth();
+  }
+
+  // ==================== MAIN APP ====================
+  function init() {
+    // Auth form handlers
+    authBtnSubmit.addEventListener('click', handleAuth);
+    authBtnSwitch.addEventListener('click', switchAuthMode);
+    authPassword.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') handleAuth();
+    });
+
+    // Logout handlers
+    document.querySelectorAll('.header-user').forEach(function(el) {
+      el.addEventListener('click', handleLogout);
+    });
 
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
@@ -48,9 +172,6 @@ var App = (function() {
     });
 
     // Stats nav
-    var now = new Date();
-    statsYear = now.getFullYear();
-    statsMonth = now.getMonth() + 1;
     $('nav-prev').addEventListener('click', function() { shiftStats(-1); });
     $('nav-next').addEventListener('click', function() { shiftStats(1); });
 
@@ -70,7 +191,6 @@ var App = (function() {
 
       Voice.start(
         function(result) {
-          // Final result
           voiceBtn.classList.remove('listening');
           voiceTranscript.className = 'voice-transcript';
           voiceTranscript.textContent = '';
@@ -79,13 +199,8 @@ var App = (function() {
           parseVoiceResult(result);
         },
         function(text, isFinal) {
-          // Interim callback — live transcript
           voiceTranscript.textContent = text || '...';
-          if (isFinal) {
-            voiceTranscript.className = 'voice-transcript';
-          } else {
-            voiceTranscript.className = 'voice-transcript is-interim';
-          }
+          voiceTranscript.className = 'voice-transcript' + (isFinal ? '' : ' is-interim');
           voiceHint.textContent = isFinal ? '✅ 识别完成' : '🎙️ 正在听...';
         },
         function(status) {
@@ -102,17 +217,23 @@ var App = (function() {
     // Save button
     btnSave.addEventListener('click', saveRecord);
 
-    // Easy amount input
+    // Enter to save
     inputDesc.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') saveRecord();
     });
 
-    // Register Service Worker
+    // Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(function() {});
     }
 
-    switchTab('add');
+    // Try auto-login
+    var autoUser = Auth.tryAutoLogin();
+    if (autoUser) {
+      showMain(autoUser);
+    } else {
+      showAuth();
+    }
   }
 
   // ---- Tab switching ----
@@ -135,7 +256,6 @@ var App = (function() {
     if (!text) return;
     inputDesc.value = text;
 
-    // Try to extract amount from speech
     var amountMatch = text.match(/(\d+\.?\d*)\s*(块|元|块钱|元钱|¥|￥)/);
     if (!amountMatch) {
       amountMatch = text.match(/(\d+\.?\d*)/);
@@ -144,7 +264,6 @@ var App = (function() {
       inputAmount.value = parseFloat(amountMatch[1]);
     }
 
-    // Auto classify
     if (!inputCategory.value) {
       var result = Classifier.classify(text);
       toast('已自动分类为: ' + Classifier.getIcon(result.category) + ' ' + result.category);
@@ -152,7 +271,6 @@ var App = (function() {
 
     inputAmount.focus();
 
-    // Auto-save if amount and description are both present
     if (inputAmount.value && inputDesc.value) {
       setTimeout(function() {
         var r = Classifier.classify(text);
@@ -192,9 +310,16 @@ var App = (function() {
       date: inputDate.value || new Date().toISOString().slice(0, 10)
     };
 
-    Storage.save(record);
+    var saved = Storage.save(record);
 
-    // Reset form
+    // Verify save
+    var all = Storage.getAll();
+    var verified = all.some(function(r) { return r.id === saved.id; });
+    if (!verified) {
+      toast('⚠️ 保存异常，请重试');
+      return;
+    }
+
     inputAmount.value = '';
     inputDesc.value = '';
     inputCategory.value = '';
@@ -214,7 +339,6 @@ var App = (function() {
       return;
     }
 
-    // Group by date
     var groups = {};
     records.forEach(function(r) {
       if (!groups[r.date]) groups[r.date] = [];
@@ -242,7 +366,6 @@ var App = (function() {
 
     expenseList.innerHTML = html;
 
-    // Delete handlers
     expenseList.querySelectorAll('.btn-delete').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -276,8 +399,7 @@ var App = (function() {
       statAvg.textContent = '¥' + (records.length ? (total / 12).toFixed(2) : '0');
     }
 
-    // Hide nav arrows in year mode
-    $('stats-nav').style.display = statsPeriod === 'month' ? 'flex' : 'flex';
+    $('stats-nav').style.display = 'flex';
 
     Charts.renderPie('pie-chart', records);
     Charts.renderBar('bar-chart', records, statsPeriod, statsYear, statsMonth);
@@ -317,7 +439,7 @@ var App = (function() {
     return map[cat] || 'other';
   }
 
-  return { init: init, switchTab: switchTab, refreshList: refreshList, refreshStats: refreshStats };
+  return { init: init };
 })();
 
 document.addEventListener('DOMContentLoaded', function() {

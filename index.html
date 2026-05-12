@@ -14,98 +14,144 @@
 </head>
 <body>
   <div id="app">
-    <!-- ===== 记账页 ===== -->
-    <div id="tab-add" class="tab-page active">
-      <div class="page-header">记一笔</div>
-      <div class="voice-area">
-        <button class="voice-btn" id="voice-btn" title="点击开始语音输入">🎤</button>
-        <div class="voice-hint" id="voice-hint">点按录音，说出你的消费</div>
-      </div>
-      <div class="voice-transcript" id="voice-transcript" style="display:none;"></div>
-      <div class="card">
-        <div class="form-row">
-          <span style="font-size:20px;font-weight:500;">¥</span>
-          <input type="number" class="form-input" id="input-amount" placeholder="花了多少钱？" step="0.01" inputmode="decimal" style="flex:1;font-size:20px;font-weight:500;text-align:left;">
+    <!-- ==================== 登录/注册页 ==================== -->
+    <div id="auth-page" class="auth-page active">
+      <div class="auth-logo">💰</div>
+      <div class="auth-title">小账本</div>
+      <div class="auth-subtitle" id="auth-mode-text">登录你的账户</div>
+      <div class="auth-card">
+        <input type="text" class="auth-input" id="auth-username" placeholder="用户名" autocomplete="username">
+        <input type="password" class="auth-input" id="auth-password" placeholder="密码" autocomplete="current-password">
+        <div id="auth-register-extra" style="display:none;">
+          <input type="password" class="auth-input" id="auth-password2" placeholder="确认密码" autocomplete="new-password">
         </div>
-        <div class="form-row">
-          <input type="text" class="form-input" id="input-desc" placeholder="买了什么？">
+        <div class="auth-check-row">
+          <input type="checkbox" id="auth-remember">
+          <label for="auth-remember">记住密码</label>
+          <input type="checkbox" id="auth-auto-login">
+          <label for="auth-auto-login">自动登录</label>
         </div>
-        <div class="form-row">
-          <input type="date" class="form-input" id="input-date">
-          <select class="form-select" id="input-category">
-            <option value="">🤖 自动分类</option>
-            <option value="餐饮">🍔 餐饮</option>
-            <option value="交通">🚌 交通</option>
-            <option value="购物">🛒 购物</option>
-            <option value="娱乐">🎮 娱乐</option>
-            <option value="住房">🏠 住房</option>
-            <option value="医疗">💊 医疗</option>
-            <option value="教育">📚 教育</option>
-            <option value="其他">💰 其他</option>
-          </select>
-          <button class="btn-primary" id="btn-save">记下</button>
-        </div>
-      </div>
-      <div class="card" style="font-size:13px;color:var(--text-secondary);text-align:center;">
-        💡 提示：语音输入后会自动识别金额和分类
+        <div class="auth-error" id="auth-error"></div>
+        <button class="auth-btn" id="auth-btn-submit">登 录</button>
+        <button class="auth-btn outline" id="auth-btn-switch">还没有账户？去注册</button>
       </div>
     </div>
 
-    <!-- ===== 账单页 ===== -->
-    <div id="tab-list" class="tab-page">
-      <div class="page-header">账单</div>
-      <div id="expense-list"></div>
-    </div>
+    <!-- ==================== 主应用 ==================== -->
+    <div id="main-container" class="main-container" style="display:none;">
+      <!-- 记账页 -->
+      <div id="tab-add" class="tab-page active">
+        <div class="page-header">
+          <span class="header-title">记一笔</span>
+          <span class="header-user" id="header-user">
+            <span id="header-username"></span>
+            <span class="logout-icon">🚪</span>
+          </span>
+        </div>
+        <div class="voice-area">
+          <button class="voice-btn" id="voice-btn" title="点击开始语音输入">🎤</button>
+          <div class="voice-hint" id="voice-hint">点按录音，说出你的消费</div>
+        </div>
+        <div class="voice-transcript" id="voice-transcript" style="display:none;"></div>
+        <div class="card">
+          <div class="form-row">
+            <span style="font-size:20px;font-weight:500;">¥</span>
+            <input type="number" class="form-input" id="input-amount" placeholder="花了多少钱？" step="0.01" inputmode="decimal" style="flex:1;font-size:20px;font-weight:500;text-align:left;">
+          </div>
+          <div class="form-row">
+            <input type="text" class="form-input" id="input-desc" placeholder="买了什么？">
+          </div>
+          <div class="form-row">
+            <input type="date" class="form-input" id="input-date">
+          </div>
+          <div class="form-row">
+            <select class="form-select" id="input-category" style="flex:1;">
+              <option value="">🤖 自动分类</option>
+              <option value="餐饮">🍔 餐饮</option>
+              <option value="交通">🚌 交通</option>
+              <option value="购物">🛒 购物</option>
+              <option value="娱乐">🎮 娱乐</option>
+              <option value="住房">🏠 住房</option>
+              <option value="医疗">💊 医疗</option>
+              <option value="教育">📚 教育</option>
+              <option value="其他">💰 其他</option>
+            </select>
+            <button class="btn-primary" id="btn-save">记下</button>
+          </div>
+        </div>
+        <div class="card" style="font-size:13px;color:var(--text-secondary);text-align:center;">
+          💡 提示：语音输入后会自动识别金额和分类
+        </div>
+      </div>
 
-    <!-- ===== 统计页 ===== -->
-    <div id="tab-stats" class="tab-page">
-      <div class="page-header">统计</div>
-      <div class="period-switch stats-header">
-        <button class="period-btn active" data-period="month">月度</button>
-        <button class="period-btn" data-period="year">年度</button>
-      </div>
-      <div class="stats-nav" id="stats-nav">
-        <button class="nav-btn" id="nav-prev">◀</button>
-        <span class="nav-label" id="nav-label">2026年5月</span>
-        <button class="nav-btn" id="nav-next">▶</button>
-      </div>
-      <div class="stats-summary" id="stats-summary">
-        <div class="stat-item">
-          <div class="stat-value" id="stat-total">¥0</div>
-          <div class="stat-label">总支出</div>
+      <!-- 账单页 -->
+      <div id="tab-list" class="tab-page">
+        <div class="page-header">
+          <span class="header-title">账单</span>
+          <span class="header-user" id="header-user2">
+            <span id="header-username2"></span>
+            <span class="logout-icon">🚪</span>
+          </span>
         </div>
-        <div class="stat-item">
-          <div class="stat-value" id="stat-count">0</div>
-          <div class="stat-label">笔数</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value" id="stat-avg">¥0</div>
-          <div class="stat-label">日均</div>
-        </div>
+        <div id="expense-list"></div>
       </div>
-      <div class="chart-container">
-        <canvas id="pie-chart"></canvas>
-      </div>
-      <div class="chart-container">
-        <canvas id="bar-chart"></canvas>
-      </div>
-    </div>
 
-    <!-- ===== Bottom Tab Bar ===== -->
-    <nav class="tab-bar">
-      <button class="tab-btn active" data-tab="add">
-        <span class="tab-icon">📝</span>
-        <span>记账</span>
-      </button>
-      <button class="tab-btn" data-tab="list">
-        <span class="tab-icon">📋</span>
-        <span>账单</span>
-      </button>
-      <button class="tab-btn" data-tab="stats">
-        <span class="tab-icon">📊</span>
-        <span>统计</span>
-      </button>
-    </nav>
+      <!-- 统计页 -->
+      <div id="tab-stats" class="tab-page">
+        <div class="page-header">
+          <span class="header-title">统计</span>
+          <span class="header-user" id="header-user3">
+            <span id="header-username3"></span>
+            <span class="logout-icon">🚪</span>
+          </span>
+        </div>
+        <div class="stats-header">
+          <button class="period-btn active" data-period="month">月度</button>
+          <button class="period-btn" data-period="year">年度</button>
+        </div>
+        <div class="stats-nav" id="stats-nav">
+          <button class="nav-btn" id="nav-prev">◀</button>
+          <span class="nav-label" id="nav-label">2026年5月</span>
+          <button class="nav-btn" id="nav-next">▶</button>
+        </div>
+        <div class="stats-summary" id="stats-summary">
+          <div class="stat-item">
+            <div class="stat-value" id="stat-total">¥0</div>
+            <div class="stat-label">总支出</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="stat-count">0</div>
+            <div class="stat-label">笔数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="stat-avg">¥0</div>
+            <div class="stat-label">日均</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="pie-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <canvas id="bar-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Bottom Tab Bar -->
+      <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="add">
+          <span class="tab-icon">📝</span>
+          <span>记账</span>
+        </button>
+        <button class="tab-btn" data-tab="list">
+          <span class="tab-icon">📋</span>
+          <span>账单</span>
+        </button>
+        <button class="tab-btn" data-tab="stats">
+          <span class="tab-icon">📊</span>
+          <span>统计</span>
+        </button>
+      </nav>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -115,6 +161,7 @@
   <script src="js/classifier.js"></script>
   <script src="js/voice.js"></script>
   <script src="js/charts.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
