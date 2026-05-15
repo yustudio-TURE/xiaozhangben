@@ -1,3 +1,25 @@
+# Apple 风格重设计实现计划
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 将小账本 PWA 的 style.css 重写为 Apple/iOS 原生设计风格，支持浅色/深色自动切换。
+
+**Architecture:** 纯 CSS 改造。使用 CSS 自定义属性（变量）+ `@media (prefers-color-scheme: dark)` 实现主题跟随系统。不改动 HTML 结构和 JS 逻辑。
+
+**Tech Stack:** CSS3 (变量、媒体查询、backdrop-filter、动画)
+
+---
+
+### Task 1: CSS 变量与基础重置
+
+**Files:**
+- Modify: `css/style.css` (完整重写)
+
+- [ ] **Step 1: 写入 CSS 变量、reset、body、#app 基础样式**
+
+将 `css/style.css` 完整替换为以下内容:
+
+```css
 /* === Reset & Base === */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -54,7 +76,29 @@ html, body {
   position: relative;
   background: var(--bg);
 }
+```
 
+- [ ] **Step 2: 在浏览器中打开 index.html，确认无报错，背景色正确**
+
+不需要单独测试命令，用浏览器打开 `index.html` 检查页面加载无 CSS 报错即可。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: add Apple-style CSS variables and base reset with dark mode support"
+```
+
+---
+
+### Task 2: 登录页样式
+
+**Files:**
+- Modify: `css/style.css` (追加)
+
+- [ ] **Step 1: 在 style.css 末尾追加登录页样式**
+
+```css
 /* === Auth Page === */
 .auth-page {
   flex: 1;
@@ -150,7 +194,29 @@ html, body {
   text-align: center;
   min-height: 20px;
 }
+```
 
+- [ ] **Step 2: 验证登录页外观**
+
+在浏览器中打开 `index.html`，检查登录页: Logo、标题、输入框圆角无边框、按钮蓝色。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: redesign auth page with Apple iOS aesthetic"
+```
+
+---
+
+### Task 3: 主容器、Header、Tab Bar
+
+**Files:**
+- Modify: `css/style.css` (追加)
+
+- [ ] **Step 1: 追加主容器、页面头部、底部标签栏样式**
+
+```css
 /* === Main Container === */
 .main-container {
   flex: 1;
@@ -233,7 +299,29 @@ html, body {
 }
 .tab-btn .tab-icon { font-size: 22px; }
 .tab-btn.active { color: var(--blue); }
+```
 
+- [ ] **Step 2: 验证**
+
+浏览器打开 index.html，登录后检查: 大标题 32px、Tab Bar 毛玻璃效果、三个标签切换蓝色高亮。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: add iOS-style header, tab bar with frosted glass effect"
+```
+
+---
+
+### Task 4: 收支切换、语音按钮、表单
+
+**Files:**
+- Modify: `css/style.css` (追加)
+
+- [ ] **Step 1: 追加样式**
+
+```css
 /* === Segmented Control (支出/收入) === */
 .type-toggle {
   display: flex;
@@ -379,7 +467,29 @@ html, body {
   white-space: nowrap;
 }
 .btn-primary:active { opacity: 0.7; }
+```
 
+- [ ] **Step 2: 验证**
+
+浏览器中打开 index.html，切换到记账页，检查: Segmented Control、语音按钮蓝色圆形、输入框无边框灰底、记下按钮。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: redesign segmented control, voice button, and form inputs with iOS style"
+```
+
+---
+
+### Task 5: 账单列表页样式
+
+**Files:**
+- Modify: `css/style.css` (追加)
+
+- [ ] **Step 1: 追加账单列表样式**
+
+```css
 /* === Category Tag === */
 .cat-tag {
   display: inline-flex;
@@ -512,7 +622,29 @@ html, body {
 }
 .empty-state .empty-icon { font-size: 48px; opacity: 0.5; }
 .empty-state .empty-text { font-size: 15px; }
+```
 
+- [ ] **Step 2: 验证**
+
+浏览器中打开，切换到账单页，检查: 筛选栏底线指示、记录卡片圆角、分类图标彩色方块、金额等宽字体红/绿色。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: redesign expense list with Apple card style and SF Mono amounts"
+```
+
+---
+
+### Task 6: 统计页样式
+
+**Files:**
+- Modify: `css/style.css` (追加)
+
+- [ ] **Step 1: 追加统计页样式**
+
+```css
 /* === Stats Page === */
 .stats-header {
   display: flex;
@@ -643,7 +775,29 @@ html, body {
   padding: 4px 0;
   outline: none;
 }
+```
 
+- [ ] **Step 2: 验证**
+
+浏览器中打开，切换到统计页，检查: 周期按钮、月份导航圆形箭头、汇总卡片、图表容器。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: redesign stats page with iOS-style controls and SF Mono numbers"
+```
+
+---
+
+### Task 7: 弹窗、编辑、批量模式、Toast
+
+**Files:**
+- Modify: `css/style.css` (追加)
+
+- [ ] **Step 1: 追加剩余样式**
+
+```css
 /* === Modal === */
 .modal {
   position: fixed;
@@ -804,3 +958,61 @@ html, body {
     color: #000;
   }
 }
+```
+
+- [ ] **Step 2: 验证**
+
+浏览器中检查: 底部滑出弹窗、毛玻璃遮罩、记录编辑/删除按钮、批量模式、Toast 提示。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add css/style.css
+git commit -m "style: redesign modal, batch mode, and toast with iOS aesthetic"
+```
+
+---
+
+### Task 8: 最终验证
+
+**Files:**
+- 全部 (只读检查)
+
+- [ ] **Step 1: 全面走查所有页面**
+
+在浏览器中打开 `index.html`，逐一检查:
+
+1. **登录页**: 输入框、按钮、勾选框样式正确
+2. **记账页**: Segmented Control、语音按钮、输入卡片、批量模式
+3. **账单页**: 筛选栏、记录条目、金额颜色
+4. **统计页**: 周期选择、汇总卡片、图表、导航
+5. **弹窗**: 编辑弹窗底部滑出、毛玻璃遮罩
+6. **Tab Bar**: 毛玻璃效果、蓝色选中态
+7. **深色模式**: 在系统设置中切换深色模式，检查所有页面
+
+- [ ] **Step 2: 使用验证技能确认完成**
+
+```bash
+# 确认 style.css 文件存在且内容完整
+wc -l css/style.css
+```
+
+- [ ] **Step 3: 清理预览文件并提交**
+
+```bash
+rm style-preview.html
+git add css/style.css
+git rm style-preview.html 2>/dev/null
+git commit -m "style: complete Apple iOS redesign, remove style preview"
+```
+```
+
+---
+
+## Self-Review
+
+1. **Spec coverage**: 所有 spec 章节均已覆盖 — CSS 变量和主题 (Task 1)、登录页 (Task 2)、主容器/Header/Tab Bar (Task 3)、记账页 (Task 4)、账单页 (Task 5)、统计页 (Task 6)、弹窗/批量/Toast (Task 7)、最终验证 (Task 8)。
+
+2. **Placeholder scan**: 无 TBD/TODO，所有步骤包含实际 CSS 代码。
+
+3. **Type consistency**: 所有 CSS 变量名在全部 task 中一致使用 (`--bg`, `--card`, `--text`, `--blue`, `--green`, `--red`, `--fill`, `--fill-secondary`, `--text-secondary`, `--separator`)。

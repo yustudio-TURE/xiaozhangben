@@ -57,7 +57,18 @@ var Classifier = (function() {
     ]
   };
 
-  var CAT_ICONS = {
+  // 收入分类关键词
+  var INCOME_RULES = {
+    '工资': ['工资', '发工资', '薪水', '薪资', '年终奖', '奖金', '绩效', '提成', '底薪'],
+    '兼职': ['兼职', '副业', '接单', '外包', '私活', '零工', '小时工', '打零工', '临时工'],
+    '股票': ['股票', '炒股', 'A股', '港股', '美股', '分红', '涨停', '证券', '持仓', '卖出'],
+    '理财': ['理财', '利息', '余额宝', '零钱通', '国债', '存款', '定期', '基金', '赎回', '收益'],
+    '红包': ['红包', '转账', '收款', '礼金', '份子', '压岁钱', '零花钱', '群收款'],
+    '退款': ['退款', '退货', '返现', '返利', '赔付', '补偿', '退费', '退钱', '退票'],
+    '报销': ['报销', '补贴', '津贴', '差旅', '补助', '餐补', '交通补贴', '房补', '报账']
+  };
+
+  var EXPENSE_ICONS = {
     '餐饮': '🍔',
     '交通': '🚌',
     '购物': '🛒',
@@ -68,42 +79,61 @@ var Classifier = (function() {
     '其他': '💰'
   };
 
-  var CAT_KEYS = Object.keys(CAT_ICONS);
+  var INCOME_ICONS = {
+    '工资': '💼',
+    '兼职': '🔧',
+    '股票': '📈',
+    '理财': '🏦',
+    '红包': '🧧',
+    '退款': '↩️',
+    '报销': '🧾',
+    '其他收入': '💵'
+  };
 
-  function classify(description) {
-    if (!description) return { category: '其他', confidence: 0 };
-    var text = description.toLowerCase();
+  var EXPENSE_KEYS = Object.keys(EXPENSE_ICONS);
+  var INCOME_KEYS = Object.keys(INCOME_ICONS);
+
+  function _match(text, rules, defaultCat) {
+    if (!text) return { category: defaultCat, confidence: 0 };
+    text = text.toLowerCase();
     var scores = {};
+    var keys = Object.keys(rules);
 
-    CAT_KEYS.forEach(function(cat) {
+    keys.forEach(function(cat) {
       scores[cat] = 0;
-      if (!RULES[cat]) return;
-      RULES[cat].forEach(function(kw) {
+      (rules[cat] || []).forEach(function(kw) {
         if (text.indexOf(kw) !== -1) {
           scores[cat] += kw.length >= 3 ? 3 : 1;
         }
       });
     });
 
-    var best = '其他';
+    var best = defaultCat;
     var bestScore = 0;
-    CAT_KEYS.forEach(function(cat) {
+    keys.forEach(function(cat) {
       if (scores[cat] > bestScore) {
         bestScore = scores[cat];
         best = cat;
       }
     });
 
-    var confidence = bestScore > 0 ? Math.min(bestScore / 5, 1) : 0;
-    return { category: best, confidence: confidence };
+    return { category: best, confidence: bestScore > 0 ? Math.min(bestScore / 5, 1) : 0 };
+  }
+
+  function classify(description) {
+    return _match(description, RULES, '其他');
+  }
+
+  function classifyIncome(description) {
+    return _match(description, INCOME_RULES, '其他收入');
   }
 
   function getIcon(category) {
-    return CAT_ICONS[category] || '💰';
+    return EXPENSE_ICONS[category] || INCOME_ICONS[category] || '💰';
   }
 
-  function getCategories() {
-    return CAT_KEYS;
+  function getCategories(type) {
+    return type === 'income' ? INCOME_KEYS : EXPENSE_KEYS;
   }
 
   function addKeyword(category, keyword) {
@@ -114,6 +144,7 @@ var Classifier = (function() {
 
   return {
     classify: classify,
+    classifyIncome: classifyIncome,
     getIcon: getIcon,
     getCategories: getCategories,
     addKeyword: addKeyword

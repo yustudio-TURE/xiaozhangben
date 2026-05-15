@@ -55,6 +55,12 @@ var App = (function() {
   var _editingId = null;
   var _batchItems = [];
 
+  // Income/Expense mode
+  var currentType = 'expense';
+  var listFilter = 'expense';
+  var statsType = 'expense';
+  var statTotalLabel = $('stat-total-label');
+
   var currentTab = 'add';
   var statsPeriod = 'month';
   var statsYear, statsMonth, statsDay;
@@ -91,6 +97,51 @@ var App = (function() {
 
     switchTab('add');
     toast('👋 欢迎, ' + user.username);
+  }
+
+  function updateUIType() {
+    var isIncome = currentType === 'income';
+
+    // Toggle buttons
+    document.querySelectorAll('.type-toggle-btn').forEach(function(btn) {
+      btn.className = 'type-toggle-btn';
+      if (btn.dataset.type === currentType) {
+        btn.classList.add(isIncome ? 'active-income' : 'active-expense');
+      }
+    });
+
+    // Voice button color via class (doesn't override .listening)
+    voiceBtn.classList.toggle('income-mode', isIncome);
+
+    // Sync global mode to list and stats
+    listFilter = currentType;
+    statsType = currentType;
+
+    // Placeholders
+    inputAmount.placeholder = isIncome ? '收入多少？' : '花了多少钱？';
+    inputDesc.placeholder = isIncome ? '什么收入？' : '买了什么？';
+    voiceHint.textContent = isIncome ? '点按录音，说出你的收入' : '点按录音，说出你的消费';
+
+    // Category dropdown
+    var cats = Classifier.getCategories(currentType);
+    var html = '<option value="">🤖 自动分类</option>';
+    cats.forEach(function(c) {
+      html += '<option value="' + c + '">' + Classifier.getIcon(c) + ' ' + c + '</option>';
+    });
+    inputCategory.innerHTML = html;
+    inputCategory.value = '';
+
+    // Batch toggle text
+    document.querySelector('.batch-switch-text').textContent = isIncome ?
+      '📋 批量模式（一句话记多笔收入）' : '📋 批量模式（一句话记多笔）';
+
+    // Hint card
+    var hintCard = document.querySelector('#tab-add .card:last-child');
+    if (hintCard) {
+      hintCard.textContent = isIncome ?
+        '💡 提示：语音输入后会自动识别金额和收入分类' :
+        '💡 提示：语音输入后会自动识别金额和分类';
+    }
   }
 
   function handleAuth() {
@@ -321,6 +372,14 @@ var App = (function() {
       }
     });
 
+    // Type toggle (支出/收入)
+    document.querySelectorAll('.type-toggle-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        currentType = this.dataset.type;
+        updateUIType();
+      });
+    });
+
     // Save button
     btnSave.addEventListener('click', saveRecord);
 
@@ -373,7 +432,7 @@ var App = (function() {
     }
 
     if (!inputCategory.value) {
-      var result = Classifier.classify(text);
+      var result = currentType === 'income' ? Classifier.classifyIncome(text) : Classifier.classify(text);
       toast('已自动分类为: ' + Classifier.getIcon(result.category) + ' ' + result.category);
     }
 
@@ -381,7 +440,7 @@ var App = (function() {
 
     if (inputAmount.value && inputDesc.value) {
       setTimeout(function() {
-        var r = Classifier.classify(text);
+        var r = currentType === 'income' ? Classifier.classifyIncome(text) : Classifier.classify(text);
         if (r.confidence >= 0.4) {
           saveRecord();
         }
@@ -407,7 +466,7 @@ var App = (function() {
 
     var category = inputCategory.value;
     if (!category) {
-      var result = Classifier.classify(desc);
+      var result = currentType === 'income' ? Classifier.classifyIncome(desc) : Classifier.classify(desc);
       category = result.category;
     }
 
@@ -415,6 +474,7 @@ var App = (function() {
       amount: amount,
       description: desc,
       category: category,
+      type: currentType,
       date: inputDate.value || new Date().toISOString().slice(0, 10)
     };
 
@@ -479,7 +539,7 @@ var App = (function() {
 
       if (!desc) desc = '消费';
 
-      var result = Classifier.classify(desc);
+      var result = currentType === 'income' ? Classifier.classifyIncome(desc) : Classifier.classify(desc);
       items.push({
         amount: match.amount,
         description: desc,
@@ -547,6 +607,7 @@ var App = (function() {
         amount: item.amount,
         description: item.description,
         category: item.category,
+        type: currentType,
         date: date
       });
     });
@@ -568,8 +629,17 @@ var App = (function() {
   function refreshList() {
     var records = Storage.getAll();
 
+    // Filter by type
+    if (listFilter !== 'all') {
+      records = records.filter(function(r) {
+        return (r.type || 'expense') === listFilter;
+      });
+    }
+
     if (records.length === 0) {
-      expenseList.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">还没有记账，去记一笔吧</div></div>';
+      var emptyMsg = listFilter === 'income' ? '还没有收入记录' :
+                     listFilter === 'expense' ? '还没有支出记录' : '还没有记账，去记一笔吧';
+      expenseList.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">' + emptyMsg + '</div></div>';
       return;
     }
 
@@ -587,11 +657,14 @@ var App = (function() {
       groups[date].forEach(function(r) {
         var icon = Classifier.getIcon(r.category);
         var catClass = getCatClass(r.category);
+        var isIncome = (r.type === 'income');
+        var amountClass = isIncome ? 'item-amount income' : 'item-amount';
+        var prefix = isIncome ? '+' : '';
         html += '<div class="expense-item">' +
           '<div class="cat-icon ' + catClass + '">' + icon + '</div>' +
           '<div class="item-info"><div class="item-desc">' + esc(r.description) + '</div>' +
           '<div class="item-meta">' + r.category + '</div></div>' +
-          '<div class="item-amount">¥' + r.amount.toFixed(2) + '</div>' +
+          '<div class="' + amountClass + '">' + prefix + '¥' + r.amount.toFixed(2) + '</div>' +
           '<button class="btn-edit" data-id="' + r.id + '">✏️</button>' +
           '<button class="btn-delete" data-id="' + r.id + '">🗑</button>' +
           '</div>';
@@ -632,7 +705,17 @@ var App = (function() {
     editAmount.value = record.amount;
     editDesc.value = record.description;
     editDate.value = record.date;
+
+    // Populate category dropdown based on record type
+    var recType = record.type || 'expense';
+    var cats = Classifier.getCategories(recType);
+    var html = '';
+    cats.forEach(function(c) {
+      html += '<option value="' + c + '">' + Classifier.getIcon(c) + ' ' + c + '</option>';
+    });
+    editCategory.innerHTML = html;
     editCategory.value = record.category;
+
     editModal.style.display = 'flex';
   }
 
@@ -662,25 +745,30 @@ var App = (function() {
 
   // ---- Statistics ----
   function refreshStats() {
-    var records;
+    var allRecords;
 
     if (statsPeriod === 'day') {
-      records = Storage.getByDay(statsYear, statsMonth, statsDay);
+      allRecords = Storage.getByDay(statsYear, statsMonth, statsDay);
       navLabel.textContent = statsYear + '年' + statsMonth + '月' + statsDay + '日';
     } else if (statsPeriod === 'month') {
-      records = Storage.getByMonth(statsYear, statsMonth);
+      allRecords = Storage.getByMonth(statsYear, statsMonth);
       navLabel.textContent = statsYear + '年' + statsMonth + '月';
     } else {
-      records = Storage.getByYear(statsYear);
+      allRecords = Storage.getByYear(statsYear);
       navLabel.textContent = statsYear + '年';
     }
+
+    // Filter by stats type for charts
+    var records = allRecords.filter(function(r) {
+      return (r.type || 'expense') === statsType;
+    });
 
     var total = records.reduce(function(s, r) { return s + r.amount; }, 0);
     statTotal.textContent = '¥' + total.toFixed(2);
     statCount.textContent = records.length;
+    statTotalLabel.textContent = statsType === 'income' ? '总收入' : '总支出';
 
     if (statsPeriod === 'day') {
-      // Daily: no average needed, hide the avg stat
       statAvg.textContent = '—';
       statAvgLabel.textContent = '当天';
       statAvg.parentElement.style.display = '';
@@ -690,7 +778,6 @@ var App = (function() {
       statAvgLabel.textContent = '日均';
       statAvg.parentElement.style.display = '';
     } else {
-      // Yearly: total / days in year (not months!)
       var daysInYear = isLeapYear(statsYear) ? 366 : 365;
       var now = new Date();
       if (statsYear === now.getFullYear()) {
@@ -705,7 +792,6 @@ var App = (function() {
     $('stats-nav').style.display = 'flex';
 
     if (statsPeriod === 'day') {
-      // Day mode: show detail list instead of charts
       document.querySelectorAll('#tab-stats .chart-container').forEach(function(el) { el.style.display = 'none'; });
       Charts.destroyAll();
       renderDayDetail(records);

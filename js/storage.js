@@ -32,6 +32,7 @@ var Storage = (function() {
       amount: parseFloat(record.amount) || 0,
       description: (record.description || '').trim(),
       category: record.category || '其他',
+      type: record.type || 'expense',
       date: record.date || new Date().toISOString().slice(0, 10),
       createdAt: now
     };
